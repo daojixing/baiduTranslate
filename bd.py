@@ -5,7 +5,7 @@
 import sys, os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shortyQt import Shorty
-from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QAction, QMenu, qApp, QMessageBox,QMainWindow
+from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QAction, QMenu, QMainWindow
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QCoreApplication,Qt,QUrl
 import sys
