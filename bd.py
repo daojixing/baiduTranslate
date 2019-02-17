@@ -17,7 +17,7 @@ import urllib.parse
 
 class MainWindow(QMainWindow):
     # noinspection PyUnresolvedReferences
-    def __init__(self,url,*args, **kwargs):
+    def __init__(self,*args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # 设置窗口标题
@@ -28,13 +28,18 @@ class MainWindow(QMainWindow):
 
 
         # 设置窗口图标
-        self.setWindowIcon(QIcon(sys.path[0]+'/bd'))
+        #self.setWindowIcon(QIcon(sys.path[0]+'/bd'))
         # 设置窗口大小900*600
         self.setWindowFlags( Qt.WindowCloseButtonHint
                             |Qt.Popup)
-        self.show()
+        #self.show()
         # 设置浏览器
         self.browser = QWebEngineView()
+        self.gg=True
+        if self.gg:
+            url='https://translate.google.cn/'
+        else:
+            url='https://fanyi.baidu.com/#en/zh/'
         # 指定打开界面的 URL
         self.browser.setUrl(QUrl(url))
         # 添加浏览器到窗口中
@@ -43,6 +48,7 @@ class MainWindow(QMainWindow):
         self.Tranlate=False
         # self.Top=False
         self.auto_hinde=False
+
         # self.shortcut = QShortcut(QKeySequence("Ctrl+D"), self)
         # self.shortcut.activated.connect(self.on_open)
 
@@ -86,7 +92,12 @@ class MainWindow(QMainWindow):
 
         text = urllib.parse.quote(normalizedText)
         text = text.replace("%0D", "")
-        url = 'https://fanyi.baidu.com/#en/zh/' + text
+        if self.gg:
+            url = 'https://translate.google.cn/#view=home&op=translate&sl=auto&tl=zh-CN&text=' + text
+        else:
+            url = 'https://fanyi.baidu.com/#en/zh/' + text
+
+        #
         return url
     def leaveEvent(self, QEvent):
         if self.auto_hinde:
@@ -111,18 +122,22 @@ if __name__ == '__main__':
 
 
 
-    w = MainWindow('https://fanyi.baidu.com/')
+    w = MainWindow()
 
     tp = QSystemTrayIcon()
     #sys.path[0]
-    tp.setIcon(QIcon(sys.path[0]+'/bd'))
+    if w.gg:
+        tp.setIcon(QIcon(sys.path[0]+'/gg.png'))
+    else:
+        tp.setIcon(QIcon(sys.path[0] + '/bd'))
+
     # 设置系统托盘图标的菜单
     def start():
         w.Tranlate=not w.Tranlate
         if w.Tranlate:
-            tp.showMessage('百度翻译', '已经开始', icon=0)
+            tp.showMessage('', '开始翻译', icon=0,msecs=1000)
         else:
-            tp.showMessage('百度翻译', '已经暂停', icon=0)
+            tp.showMessage('', '暂停翻译', icon=0,msecs=1000)
 
     # def top():
     #     w.Top= not w.Top
@@ -130,30 +145,63 @@ if __name__ == '__main__':
     #         tp.showMessage('百度翻译', '开启置顶', icon=0)
     #     else:
     #         tp.showMessage('百度翻译', '关闭置顶', icon=0)
-    # def auto_hide():
-    #     w.auto_hinde=not w.auto_hinde
-    #     if w.auto_hinde:
-    #         tp.showMessage('百度翻译', '自动隐藏', icon=0)
-    #     else:
-    #         tp.showMessage('百度翻译', '不自动隐藏', icon=0)
+    def auto_hide():
+        w.auto_hinde=not w.auto_hinde
+        if w.auto_hinde:
+            tp.showMessage('百度翻译', '自动隐藏', icon=0,msecs=100)
+        else:
+            tp.showMessage('百度翻译', '不自动隐藏', icon=0,msecs=100)
     a1 = QAction('&开始',checkable=True, triggered=start)
     # a2 = QAction('&切换置顶', triggered=top)
-    #a3=QAction('&隐藏',checkable=True,triggered=auto_hide)
+    a3=QAction('&自动隐藏',checkable=True,triggered=auto_hide)
 
     def quitApp():
         QCoreApplication.instance().quit()
         tp.setVisible(False)
+
+    def show_ms():
+        if gg.isChecked():
+            w.gg=True
+            tp.showMessage('', '启用谷歌', icon=0,msecs=1000)
+        else:
+            w.gg=False
+            tp.showMessage('', '启动百度', icon=0,msecs=1000)
+        if w.gg:
+            tp.setIcon(QIcon(sys.path[0] + '/gg.png'))
+        else:
+            tp.setIcon(QIcon(sys.path[0] + '/bd'))
+
+    def baidu():
+        gg.setChecked(not bd.isChecked())
+        show_ms()
+    def google():
+        bd.setChecked(not gg.isChecked())
+        show_ms()
+
+
+
+
+
     a4 = QAction('&退出', triggered=quitApp)  # 直接退出可以用qApp.quit
 
+    source_menu=QMenu('源')
+    source_menu.setAccessibleName("yuan")
+    gg=QAction('&谷歌', checkable=True,triggered=google)
+    gg.setChecked(True)
+    bd=QAction('&百度', checkable=True,triggered=baidu)
+    source_menu.addAction(gg)
+    source_menu.addAction(bd)
     tpMenu = QMenu()
     tpMenu.addAction(a1)
     # tpMenu.addAction(a2)
-    #tpMenu.addAction(a3)
+    tpMenu.addAction(a3)
+    tpMenu.addMenu(source_menu)
     tpMenu.addAction(a4)
     tp.setContextMenu(tpMenu)
     # 不调用show不会显示系统托盘
-    tp.show()
 
+    tp.show()
+    tp.showMessage('软件已启动', '请右击打开翻译', icon=0,msecs=1000)
     # 信息提示
     # 参数1：标题
     # 参数2：内容
