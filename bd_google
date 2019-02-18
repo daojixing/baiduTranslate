@@ -1,0 +1,331 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# pip3 install PyQtWebEngine pyqt5
+# #pip3 install setuptools
+#sudo apt install xclip
+# sodo pip3 install pyqtkeybind
+# Allow us to find shortyQt from the examples folder
+import sys, os.path
+
+from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QAction, QMenu, QMainWindow
+from PyQt5.QtGui import QIcon #,QKeySequence
+from PyQt5.QtCore import QCoreApplication,Qt,QUrl, QAbstractNativeEventFilter, QAbstractEventDispatcher
+import sys
+from PyQt5.QtWebEngineWidgets import  QWebEngineView
+import re
+import urllib.parse
+from pyqtkeybind import keybinder
+
+class WinEventFilter(QAbstractNativeEventFilter):
+    def __init__(self, keybinder):
+        self.keybinder = keybinder
+        super().__init__()
+
+    def nativeEventFilter(self, eventType, message):
+        ret = self.keybinder.handler(eventType, message)
+        return ret, 0
+
+class MainWindow(QMainWindow):
+    # noinspection PyUnresolvedReferences
+    def __init__(self,*args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # 设置窗口标题
+        self.setWindowTitle('百度翻译')
+
+        self.resize(1000, 600)
+        #self.setWindowFlags()
+
+
+        # 设置窗口图标
+        #self.setWindowIcon(QIcon(sys.path[0]+'/bd'))
+        # 设置窗口大小900*600
+
+        #self.show()
+        # 设置浏览器
+        self.browser = QWebEngineView()
+        self.gg=True
+        if self.gg:
+            url='https://translate.google.cn/'
+        else:
+            url='https://fanyi.baidu.com/#en/zh/'
+        # 指定打开界面的 URL
+        self.browser.setUrl(QUrl(url))
+        # 添加浏览器到窗口中
+        self.setCentralWidget(self.browser)
+        self.alta = True
+        self.addClipbordListener()
+        self.Tranlate=False
+        # self.Top=False
+        self.auto_hinde=False
+        self.Popup=True
+        self.window_model()
+
+
+
+        # self.shortcut = QShortcut(QKeySequence("Ctrl+D"), self)
+        # self.shortcut.activated.connect(self.on_open)
+
+    # def on_open(self):
+    #     print("Opening!")
+    def goto(self,url):
+        # print("isHidden()",self.isHidden())
+        # print("isMinimized()", self.isMinimized())
+        # print("isActiveWindow()", self.isActiveWindow())
+        self.browser.setUrl(QUrl(url))
+        if self.isMinimized():
+            self.showNormal()
+        if self.isHidden():
+            self.show()
+        #print(self.windowFlags())
+        # if self.Top:
+        #     self.setWindowFlags(Qt.WindowStaysOnTopHint)
+    def window_model(self):
+        if self.Popup:
+            self.setWindowFlags(Qt.WindowCloseButtonHint
+                                | Qt.Popup)
+        else:
+            self.setWindowFlags(Qt.WindowCloseButtonHint
+                                | Qt.WindowStaysOnTopHint)
+        self.Popup=not self.Popup
+
+
+    def addClipbordListener(self):
+        print("fuzhi",self.alta)
+        self.clipboard = QApplication.clipboard()
+        self.clipboard.dataChanged.connect(self.test1)
+
+    def contain_zh(self,word):
+        zh_pattern = re.compile(u'[\u4e00-\u9fa5]+')
+        match = zh_pattern.search(word)
+        return match
+    def test(self):
+        if self.Tranlate==False:
+            return
+        # copied_text=self.clipboard.text()
+        if not self.alta:
+            return
+        copied_text = os.popen("xclip -o").read()
+
+        if self.contain_zh(copied_text):
+            return
+        self.goto(self.get_url(copied_text))
+
+
+    def test1(self):
+        print('复制')
+        print(self.alta)
+        if self.Tranlate==False:
+            return
+        # copied_text=self.clipboard.text()
+        if self.alta:
+            return
+
+        copied_text = self.clipboard.text()
+        if self.contain_zh(copied_text):
+            return
+        self.goto(self.get_url(copied_text))
+    def get_url(self,copyBuff):
+        print(copyBuff)
+        normalizedText = copyBuff.replace('-\n', '')
+        normalizedText = normalizedText.replace('\n', ' ')
+        normalizedText = normalizedText.replace('\'', '\\\'')
+        normalizedText = normalizedText.replace('. ', '.')
+        normalizedText = normalizedText.replace('%', '%25')
+        text = urllib.parse.quote(normalizedText)
+        text = text.replace("%0D", "")
+        print(text)
+        if self.gg:
+            url = 'https://translate.google.cn/#view=home&op=translate&sl=auto&tl=zh-CN&text=' + text
+        else:
+            url = 'https://fanyi.baidu.com/#en/zh/' + text
+
+        #
+        return url
+    def leaveEvent(self, QEvent):
+        if self.auto_hinde:
+            self.hide()
+    def mouseReleaseEvent(self, QMouseEvent):
+        print('re')
+
+    def releaseMouse(self):
+        print('re')
+    def mouseDoubleClickEvent(self, QMouseEvent):
+        print('click')
+
+
+
+
+
+if __name__ == '__main__':
+
+    app = QApplication(sys.argv)
+
+    QApplication.setQuitOnLastWindowClosed(False)
+    w = MainWindow()
+    tp = QSystemTrayIcon()
+    #注册全局热键
+    keybinder.init()
+    def callback():
+        print("按键")
+        w.test()
+    keybinder.register_hotkey(w.winId(), "Alt+A", callback)
+    # Install a native event filter to receive events from the OS
+    win_event_filter = WinEventFilter(keybinder)
+    event_dispatcher = QAbstractEventDispatcher.instance()
+    event_dispatcher.installNativeEventFilter(win_event_filter)
+
+    #设置图标
+    if w.gg:
+        tp.setIcon(QIcon(sys.path[0]+'/gg.png'))
+    else:
+        tp.setIcon(QIcon(sys.path[0] + '/bd'))
+
+    # 设置系统托盘图标的菜单
+    def start():
+        w.Tranlate=not w.Tranlate
+        if w.Tranlate:
+            tp.showMessage('', '开始翻译', icon=0,msecs=1000)
+        else:
+            tp.showMessage('', '暂停翻译', icon=0,msecs=1000)
+
+    # def top():
+    #     w.Top= not w.Top
+    #     if w.Top:
+    #         tp.showMessage('百度翻译', '开启置顶', icon=0)
+    #     else:
+    #         tp.showMessage('百度翻译', '关闭置顶', icon=0)
+    def auto_hide():
+        w.auto_hinde=not w.auto_hinde
+        if w.auto_hinde:
+            tp.showMessage('翻译', '自动隐藏', icon=0,msecs=100)
+        else:
+            tp.showMessage('翻译', '不自动隐藏', icon=0,msecs=100)
+    a1 = QAction('&开始',checkable=True, triggered=start)
+    # a2 = QAction('&切换置顶', triggered=top)
+    a3=QAction('&自动隐藏',checkable=True,triggered=auto_hide)
+
+    def quitApp():
+        keybinder.unregister_hotkey(w.winId(), "Alt+A")
+        event_dispatcher.installNativeEventFilter(win_event_filter)
+        QCoreApplication.instance().quit()
+        tp.setVisible(False)
+
+    def show_ms():
+        if gg.isChecked():
+            w.gg=True
+            tp.showMessage('', '启用谷歌', icon=0,msecs=1000)
+        else:
+            w.gg=False
+            tp.showMessage('', '启动百度', icon=0,msecs=1000)
+        if w.gg:
+            tp.setIcon(QIcon(sys.path[0] + '/gg.png'))
+        else:
+            tp.setIcon(QIcon(sys.path[0] + '/bd'))
+
+    def baidu():
+        gg.setChecked(not bd.isChecked())
+        show_ms()
+    def google():
+        bd.setChecked(not gg.isChecked())
+        show_ms()
+
+    def AltA():
+        if alta.isChecked():
+            # keybinder.register_hotkey(w.winId(), "Alt+A", callback)
+            # event_dispatcher.blockSignals(False)
+            event_dispatcher.installNativeEventFilter(win_event_filter)
+            w.alta = True
+        else:
+            w.alta=False
+            event_dispatcher.removeNativeEventFilter((win_event_filter))
+        ctrc.setChecked(not alta.isChecked())
+
+    def copy():
+        alta.setChecked(not ctrc.isChecked())
+        if ctrc.isChecked():
+            event_dispatcher.removeNativeEventFilter((win_event_filter))
+            w.alta = False
+        else:
+            event_dispatcher.installNativeEventFilter(win_event_filter)
+            w.alta = True
+
+
+
+
+
+
+    a4 = QAction('&退出', triggered=quitApp)  # 直接退出可以用qApp.quit
+    hotkey_menu=QMenu('快捷键')
+    alta=QAction('&ALT+A', checkable=True,triggered=AltA)
+    ctrc=QAction('&复制', checkable=True,triggered=copy)
+    alta.setChecked(True)
+    hotkey_menu.addAction(alta)
+    hotkey_menu.addAction(ctrc)
+    source_menu=QMenu('翻译引擎')
+    source_menu.setAccessibleName("yuan")
+    gg=QAction('&谷歌', checkable=True,triggered=google)
+    gg.setChecked(True)
+    bd=QAction('&百度', checkable=True,triggered=baidu)
+    source_menu.addAction(gg)
+    source_menu.addAction(bd)
+    #切换弹窗方式
+    def window_model_P():
+        normal.setChecked(not Popup.isChecked())
+        w.window_model()
+        tp.showMessage('', '切换弹出方式', icon=0, msecs=1000)
+    def window_model_n():
+        Popup.setChecked(not normal.isChecked())
+        w.window_model()
+        tp.showMessage('', '切换弹出方式', icon=0, msecs=1000)
+    window_menu=QMenu("弹窗方式")
+    Popup=QAction('&弹出', checkable=True,triggered=window_model_P)
+    normal = QAction('&普通', checkable=True, triggered=window_model_n)
+    Popup.setChecked(True)
+    window_menu.addAction(Popup)
+    window_menu.addAction( normal)
+    tpMenu = QMenu()
+    tpMenu.addAction(a1)
+    # tpMenu.addAction(a2)
+    tpMenu.addAction(a3)
+    tpMenu.addMenu(window_menu)
+    tpMenu.addMenu(source_menu)
+    tpMenu.addMenu(hotkey_menu)
+
+
+    tpMenu.addAction(a4)
+    tp.setContextMenu(tpMenu)
+    # 不调用show不会显示系统托盘
+
+    tp.show()
+    tp.showMessage('软件已启动', '请右击打开翻译', icon=0,msecs=1000)
+    # 信息提示
+    # 参数1：标题
+    # 参数2：内容
+    # 参数3：图标（0没有图标 1信息图标 2警告图标 3错误图标），0还是有一个小图标
+
+
+
+    def message():
+        print("弹出的信息被点击了")
+
+
+
+    tp.messageClicked.connect(message)
+
+
+    def act(reason):
+        # 鼠标点击icon传递的信号会带有一个整形的值，1是表示单击右键，2是双击，3是单击左键，4是用鼠标中键点击
+        if reason == 2 or reason == 3:
+            w.show()
+        # print("系统托盘的图标被点击了")
+
+
+    tp.activated.connect(act)
+
+    # sys为了调用sys.exit(0)退出程序
+    # 最后,我们进入应用的主循环.事件处理从这里开始.主循环从窗口系统接收事件,分派它们到应用窗口.如果我们调用了exit()方法或者主窗口被销毁,则主循环结束.sys.exit()方法确保一个完整的退出.环境变量会被通知应用是如何结束的.
+    # exec_()方法是有一个下划线的.这是因为exec在Python中是关键字.因此,用exec_()代替.
+    sys.exit(app.exec_())
+
+
